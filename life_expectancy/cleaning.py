@@ -1,7 +1,7 @@
 """Module Assignment 1: EU Life Expectancy"""
 
-import pandas as pd
 import argparse
+import pandas as pd
 
 def clean_data(country):
     """

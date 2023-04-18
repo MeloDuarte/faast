@@ -48,3 +48,6 @@ Now you're ready to go!
 Open the `README.md` file inside each assignment and follow the instructions.
 
 > **Note**: Remember that all commands inside the Readme files assume you are in the root of the project.
+
+
+[![Python package](https://github.com/MeloDuarte/faast/actions/workflows/python-package.yml/badge.svg?branch=ci)](https://github.com/MeloDuarte/faast/actions/workflows/python-package.yml)

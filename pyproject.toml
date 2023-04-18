@@ -5,7 +5,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 description = "First assignment of the FAAST Advance Foundations"
 authors = [
-    {name = "Fernando Cordeiro<fernando@daredata.engineering>"}
+    {name = "Duarte Melo<duarte.ro.melo@nos.pt>"}
 ]
 dependencies = ["pandas"]
 

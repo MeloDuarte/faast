@@ -33,6 +33,7 @@ def clean_data(expectancy_wide: DataFrame, country: str = 'PT') -> DataFrame:
     value_floats = expectancy_clean['value'].str.findall(r"\-?\d+\.\d+")
     expectancy_clean['value'] = pd.to_numeric(value_floats[value_floats.str.len() == 1].str[0])
 
+    # Drops all NaN rows in columns `year` and `value`
     expectancy_clean = expectancy_clean.dropna(subset=['year', 'value'])
 
     expectancy_clean['year'] = expectancy_clean['year'].astype(int)

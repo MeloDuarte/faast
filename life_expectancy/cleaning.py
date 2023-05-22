@@ -4,39 +4,7 @@ import argparse
 from pathlib import Path
 import pandas as pd
 from pandas import DataFrame
-
-
-def load_data() -> DataFrame:
-    """
-    Loads `eu_life_expectancy_raw.tsv` DataFrame.
-    :return: DataFrame loaded.
-    """
-    # Gives the parent dir location of the file `pt_life_expectancy.csv`
-    filename = Path(__file__).parent / "data/eu_life_expectancy_raw.tsv"
-    print(filename)
-    data = pd.read_csv(
-        filename,
-        sep='\t',
-        header=0
-    )
-
-    return data
-
-
-def save_data(expectancy_result: DataFrame) -> None:
-    """
-    Save the resulting DataFrame to `pt_life_expectancy.csv`.
-    :param expectancy_result: DataFrame cleaned to be saved.
-    """
-    # Gives the parent dir location of the file `pt_life_expectancy.csv`
-    filename = Path(__file__).parent / "data/pt_life_expectancy.csv"
-    print(filename)
-
-    expectancy_result.to_csv(
-        filename,
-        index=False
-    )
-
+from life_expectancy.read_and_write import load_data, save_data
 
 def clean_data(expectancy_wide: DataFrame, country: str = 'PT') -> DataFrame:
     """
@@ -65,8 +33,10 @@ def clean_data(expectancy_wide: DataFrame, country: str = 'PT') -> DataFrame:
     value_floats = expectancy_clean['value'].str.findall(r"\-?\d+\.\d+")
     expectancy_clean['value'] = pd.to_numeric(value_floats[value_floats.str.len() == 1].str[0])
 
+    # Drops all NaN rows in columns `year` and `value`
     expectancy_clean = expectancy_clean.dropna(subset=['year', 'value'])
 
+    expectancy_clean['year'] = expectancy_clean['year'].astype(int)
 
     expectancy_result = expectancy_clean[['unit', 'sex', 'age', 'region', 'year', 'value']]
 
@@ -77,9 +47,12 @@ def main(country: str='PT') -> None:
     """Loads, cleans and saves data.
     :param country: region where to filter data. 
     """
-    expectancy = load_data()
+    filename = Path(__file__).parent / "data/eu_life_expectancy_raw.tsv"
+    expectancy = load_data(filename)
     expectancy_cleaned = clean_data(expectancy, country)
     save_data(expectancy_cleaned)
+
+    return expectancy_cleaned
 
 
 if __name__ == "__main__":  # pragma: no cover

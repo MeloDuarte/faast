@@ -11,7 +11,7 @@ from life_expectancy.strategies import (
     Region
 )
 
-class MainCleaning:
+class MainCleaning: # pylint: disable=too-few-public-methods
     """
     A class that performs cleaning operations on
     life expectancy dataset using a specified strategy.

@@ -1,14 +1,14 @@
 """Tests the read and write module"""
 from unittest.mock import patch
 import pandas as pd
-from life_expectancy.strategies import LoadTSVDataStrategy, LoadJSONDataStrategy, Region, save_data
+from life_expectancy.strategies import TSVDataStrategy, JSONDataStrategy, Region, save_data
 from . import FIXTURES_DIR, OUTPUT_DIR
 
 def test_read(eu_life_expectancy_sample):
     """
     Run the `load_data` function and compare the output to the expected output
     """
-    data = LoadTSVDataStrategy().load_data(FIXTURES_DIR / "eu_life_expectancy_sample.tsv")
+    data = TSVDataStrategy().load_data(FIXTURES_DIR / "eu_life_expectancy_sample.tsv")
     pd.testing.assert_frame_equal(data, eu_life_expectancy_sample)
 
 
@@ -16,7 +16,7 @@ def test_json_read(eu_life_expectancy_json_sample):
     """
     Run the json `load_data` function and compare the output to the expected output
     """
-    data = LoadJSONDataStrategy().load_data(FIXTURES_DIR / "eurostat_life_expect.json")
+    data = JSONDataStrategy().load_data(FIXTURES_DIR / "eurostat_life_expect.json")
     pd.testing.assert_frame_equal(data, eu_life_expectancy_json_sample)
 
 

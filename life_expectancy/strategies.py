@@ -89,7 +89,7 @@ class Region(Enum):
         return countries
 
 
-class LoadDataStrategy(ABC):
+class DataStrategy(ABC):
     """
     Abstract base class for data loading and cleaning strategies.
     """
@@ -100,15 +100,18 @@ class LoadDataStrategy(ABC):
         """
 
     @abstractmethod
-    def clean_data(self, expectancy: DataFrame, country: Region = Region.PT) -> DataFrame:
+    def clean_data(self, country: Region = Region.PT) -> DataFrame:
         """
         Cleans data to the required format.
         """
 
-class LoadTSVDataStrategy(LoadDataStrategy):
+class TSVDataStrategy(DataStrategy):
     """
     Loads data from a TSV file and returns cleaned life expectancy dataframe.
     """
+    def __init__(self):
+        self.expectancy = None
+
     def load_data(self, filename: str) -> DataFrame:
         """
         Loads data from a TSV file and returns a pandas dataframe.
@@ -121,41 +124,43 @@ class LoadTSVDataStrategy(LoadDataStrategy):
                 header=0
         )
 
+        self.expectancy = data
         return data
 
-    def clean_data(self, expectancy: DataFrame, country: Region = Region.PT) -> DataFrame:
+    def clean_data(self, country: Region = Region.PT) -> DataFrame:
         """
         Unpivots the DataFrame to long format, ensures `year` is an `int`
         (with the appropriate data cleaning if required), ensures `value`
         is a `float` (with the appropriate data cleaning if required, 
         and do remove the NaNs) and filters the data by region.
-        :param expectancy: expectancy DataFrame in wide format.
         :param country: region where to filter data.
         :return: cleaned DataFrame
         """
-        expectancy_lg = self._unpivot_data(expectancy)
-        expectancy_region = self._filter_by_region(expectancy_lg, country.value)
-        expectancy_clean = self._ensure_column_quality(expectancy_region)
+        self.expectancy = self._unpivot_data()
+        self.expectancy = self._filter_by_region(country.value)
+        self.expectancy = self._ensure_column_quality()
 
-        expectancy_result = expectancy_clean[['unit', 'sex', 'age', 'region', 'year', 'value']]
+        self.expectancy = self.expectancy[['unit', 'sex', 'age', 'region', 'year', 'value']]
 
-        return expectancy_result
+        return self.expectancy
 
-    @staticmethod
-    def _unpivot_data(expectancy: DataFrame) -> DataFrame:
+    def _unpivot_data(self) -> DataFrame:
         # Unpivot the DataFrame to long format
-        expectancy_lg = pd.melt(expectancy, id_vars=expectancy.columns[0], var_name="year")
+        expectancy_lg = pd.melt(
+            self.expectancy,
+            id_vars=self.expectancy.columns[0],
+            var_name="year"
+        )
         expectancy_lg[['unit', 'sex', 'age', 'region']] = pd.DataFrame(
             expectancy_lg[expectancy_lg.columns[0]].str.split(',', expand=True),
             index=expectancy_lg.index
         )
         return expectancy_lg
 
-    @staticmethod
-    def _ensure_column_quality(expectancy_region: DataFrame) -> DataFrame:
+    def _ensure_column_quality(self) -> DataFrame:
         # Find all occurrences of floats in column `value`
         # and converts argument to numeric type. Returns NaN otherwise.
-        expectancy_clean = expectancy_region[expectancy_region['year'].str.strip().str.isdigit()]
+        expectancy_clean = self.expectancy[self.expectancy['year'].str.strip().str.isdigit()]
 
         value_floats = expectancy_clean['value'].str.findall(r"\-?\d+\.\d+")
         expectancy_clean['value'] = pd.to_numeric(value_floats[value_floats.str.len() == 1].str[0])
@@ -166,17 +171,19 @@ class LoadTSVDataStrategy(LoadDataStrategy):
         expectancy_clean['year'] = expectancy_clean['year'].astype(int)
         return expectancy_clean
 
-    @staticmethod
-    def _filter_by_region(expectancy_lg: DataFrame, region: str) -> DataFrame:
+    def _filter_by_region(self, region: str) -> DataFrame:
         # Filter the data by region
-        expectancy_region = expectancy_lg[expectancy_lg['region'].str.upper() == region.upper()]
+        expectancy_region = self.expectancy[self.expectancy['region'].str.upper() == region.upper()]
         return expectancy_region
 
 
-class LoadJSONDataStrategy(LoadDataStrategy):
+class JSONDataStrategy(DataStrategy):
     """
     Loads data from a JSON file and returns cleaned life expectancy dataframe.
     """
+    def __init__(self):
+        self.expectancy = None
+
     def load_data(self, filename: str) -> DataFrame:
         """
         Loads data from a JSON file and returns a pandas dataframe.
@@ -186,9 +193,10 @@ class LoadJSONDataStrategy(LoadDataStrategy):
         data = pd.read_json(
                 filename
         )
+        self.expectancy = data
         return data
 
-    def clean_data(self, expectancy: DataFrame, country: Region = Region.PT) -> DataFrame:
+    def clean_data(self, country: Region = Region.PT) -> DataFrame:
         """
         Filters the data by the specified region,
         renames relevant columns, and drops unnecessary columns
@@ -196,7 +204,9 @@ class LoadJSONDataStrategy(LoadDataStrategy):
         :param country: region where to filter data.
         :return: cleaned DataFrame
         """
-        expectancy_region = expectancy[expectancy['country'].str.upper() == country.value.upper()]
+        expectancy_region = self.expectancy[
+            self.expectancy['country'].str.upper() == country.value.upper()
+        ]
 
         expectancy_region = expectancy_region.rename(
             columns={"country": "region", "life_expectancy": "value"}
@@ -214,7 +224,6 @@ def save_data(expectancy_result: DataFrame) -> None:
     """
     # Gives the parent dir location of the file `pt_life_expectancy.csv`
     filename = Path(__file__).parent / "data/pt_life_expectancy.csv"
-    print(filename)
 
     expectancy_result.to_csv(
         filename,

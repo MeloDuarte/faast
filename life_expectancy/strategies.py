@@ -72,7 +72,7 @@ class Region(Enum):
     def get_countries(cls) -> List[str]:
         """
         Filters valid countries.
-        :return: A list of country codes representing valid countries.
+        :return: A list of region codes representing valid countries.
         """
         not_countries = [
             'EU27_2020',
@@ -125,29 +125,38 @@ class LoadTSVDataStrategy(LoadDataStrategy):
 
     def clean_data(self, expectancy: DataFrame, country: Region = Region.PT) -> DataFrame:
         """
-        Unpivots the DataFrame to long format, ensures `year` is an `int` 
-        (with the appropriate data cleaning if required), ensures `value` 
+        Unpivots the DataFrame to long format, ensures `year` is an `int`
+        (with the appropriate data cleaning if required), ensures `value`
         is a `float` (with the appropriate data cleaning if required, 
         and do remove the NaNs) and filters the data by region.
         :param expectancy: expectancy DataFrame in wide format.
         :param country: region where to filter data.
         :return: cleaned DataFrame
         """
-        expectancy_lg = pd.melt(expectancy, id_vars=expectancy.columns[0], var_name="year")
+        expectancy_lg = self._unpivot_data(expectancy)
+        expectancy_region = self._filter_by_region(expectancy_lg, country.value)
+        expectancy_clean = self._ensure_column_quality(expectancy_region)
 
+        expectancy_result = expectancy_clean[['unit', 'sex', 'age', 'region', 'year', 'value']]
+
+        return expectancy_result
+
+    @staticmethod
+    def _unpivot_data(expectancy: DataFrame) -> DataFrame:
+        # Unpivot the DataFrame to long format
+        expectancy_lg = pd.melt(expectancy, id_vars=expectancy.columns[0], var_name="year")
         expectancy_lg[['unit', 'sex', 'age', 'region']] = pd.DataFrame(
             expectancy_lg[expectancy_lg.columns[0]].str.split(',', expand=True),
             index=expectancy_lg.index
         )
+        return expectancy_lg
 
-        expectancy_region = expectancy_lg[
-            expectancy_lg['region'].str.upper() == country.value.upper()
-        ]
-
-        expectancy_clean = expectancy_region[expectancy_region['year'].str.strip().str.isdigit()]
-
+    @staticmethod
+    def _ensure_column_quality(expectancy_region: DataFrame) -> DataFrame:
         # Find all occurrences of floats in column `value`
         # and converts argument to numeric type. Returns NaN otherwise.
+        expectancy_clean = expectancy_region[expectancy_region['year'].str.strip().str.isdigit()]
+
         value_floats = expectancy_clean['value'].str.findall(r"\-?\d+\.\d+")
         expectancy_clean['value'] = pd.to_numeric(value_floats[value_floats.str.len() == 1].str[0])
 
@@ -155,10 +164,13 @@ class LoadTSVDataStrategy(LoadDataStrategy):
         expectancy_clean = expectancy_clean.dropna(subset=['year', 'value'])
 
         expectancy_clean['year'] = expectancy_clean['year'].astype(int)
+        return expectancy_clean
 
-        expectancy_result = expectancy_clean[['unit', 'sex', 'age', 'region', 'year', 'value']]
-
-        return expectancy_result
+    @staticmethod
+    def _filter_by_region(expectancy_lg: DataFrame, region: str) -> DataFrame:
+        # Filter the data by region
+        expectancy_region = expectancy_lg[expectancy_lg['region'].str.upper() == region.upper()]
+        return expectancy_region
 
 
 class LoadJSONDataStrategy(LoadDataStrategy):

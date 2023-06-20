@@ -1,7 +1,7 @@
 """Tests for the cleaning module"""
 from unittest.mock import patch
 import pandas as pd
-from life_expectancy.strategies import LoadTSVDataStrategy, Region
+from life_expectancy.strategies import LoadTSVDataStrategy, LoadJSONDataStrategy, Region
 from life_expectancy.cleaning import main
 
 def test_clean_data(pt_life_expectancy_expected, eu_life_expectancy_sample):
@@ -15,6 +15,20 @@ def test_clean_data(pt_life_expectancy_expected, eu_life_expectancy_sample):
 
     pd.testing.assert_frame_equal(
         pt_life_expectancy_actual, pt_life_expectancy_expected
+    )
+
+
+def test_json_clean_data(pt_life_expectancy_json_expected, eu_life_expectancy_json_sample):
+    """
+    Run the json `clean_data` function on a sample dataframe and
+    compare the output to the expected output
+    """
+
+    pt_life_expectancy_actual = LoadJSONDataStrategy().clean_data(eu_life_expectancy_json_sample)
+    pt_life_expectancy_actual = pt_life_expectancy_actual.reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(
+        pt_life_expectancy_actual, pt_life_expectancy_json_expected
     )
 
 

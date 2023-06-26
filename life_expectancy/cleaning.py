@@ -3,53 +3,52 @@
 import argparse
 from pathlib import Path
 import pandas as pd
-from pandas import DataFrame
-from life_expectancy.read_and_write import load_data, save_data
+from life_expectancy.strategies import (
+    save_data,
+    DataStrategy,
+    TSVDataStrategy,
+    JSONDataStrategy,
+    Region
+)
 
-def clean_data(expectancy_wide: DataFrame, country: str = 'PT') -> DataFrame:
+class MainCleaning: # pylint: disable=too-few-public-methods
     """
-    Unpivots the DataFrame to long format, ensures `year` is an `int` 
-    (with the appropriate data cleaning if required), ensures `value` 
-    is a `float` (with the appropriate data cleaning if required, 
-    and do remove the NaNs) and filters the data by region.
-    :param expectancy_wide: expectancy DataFrame in wide format.
-    :param country: region where to filter data.
-    :return: cleaned DataFrame
+    A class that performs cleaning operations on
+    life expectancy dataset using a specified strategy.
+
+    :param filename: The name of the file containing the life expectancy dataset.
+    :param strategy: An instance of a cleaning strategy object.
+    :param country: The name of the country for which the data needs to be filtered.
     """
+    def __init__(self, filename: str, strategy: DataStrategy, country: Region=Region.PT):
+        self.filename = filename
+        self.strategy = strategy
+        self.country = country
 
-    expectancy_lg = pd.melt(expectancy_wide, id_vars=expectancy_wide.columns[0], var_name="year")
-
-    expectancy_lg[['unit', 'sex', 'age', 'region']] = pd.DataFrame(
-        expectancy_lg[expectancy_lg.columns[0]].str.split(',', expand=True),
-        index=expectancy_lg.index
-    )
-
-    expectancy_region = expectancy_lg[expectancy_lg['region'].str.upper() == country.upper()]
-
-    expectancy_clean = expectancy_region[expectancy_region['year'].str.strip().str.isdigit()]
-
-    # Find all occurrences of floats in column `value`
-    # and converts argument to numeric type. Returns NaN otherwise.
-    value_floats = expectancy_clean['value'].str.findall(r"\-?\d+\.\d+")
-    expectancy_clean['value'] = pd.to_numeric(value_floats[value_floats.str.len() == 1].str[0])
-
-    # Drops all NaN rows in columns `year` and `value`
-    expectancy_clean = expectancy_clean.dropna(subset=['year', 'value'])
-
-    expectancy_clean['year'] = expectancy_clean['year'].astype(int)
-
-    expectancy_result = expectancy_clean[['unit', 'sex', 'age', 'region', 'year', 'value']]
-
-    return expectancy_result
+    def do_cleaning(self) -> pd.DataFrame:
+        """
+        Performs the cleaning operation on the life expectancy dataset.
+        :return: The cleaned life expectancy dataset.
+        """
+        self.strategy.load_data(self.filename)
+        expectancy_cleaned = self.strategy.clean_data(self.country)
+        return expectancy_cleaned
 
 
-def main(country: str='PT') -> None:
+def main(country: Region=Region.PT, loader: str='tsv') -> None:
     """Loads, cleans and saves data.
     :param country: region where to filter data. 
+    :param loader: load file type. 
     """
-    filename = Path(__file__).parent / "data/eu_life_expectancy_raw.tsv"
-    expectancy = load_data(filename)
-    expectancy_cleaned = clean_data(expectancy, country)
+    cleaning = None
+    if loader == 'tsv':
+        filename = Path(__file__).parent / "data/eu_life_expectancy_raw.tsv"
+        cleaning = MainCleaning(filename, TSVDataStrategy(), country)
+    else:
+        filename = Path(__file__).parent / "data/eurostat_life_expect.json"
+        cleaning = MainCleaning(filename, JSONDataStrategy(), country)
+
+    expectancy_cleaned = cleaning.do_cleaning()
     save_data(expectancy_cleaned)
 
     return expectancy_cleaned
@@ -57,8 +56,10 @@ def main(country: str='PT') -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     # Country command-line option. (the default should be `PT`)
+    # Format command-line option. (the default should be `tsv`)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-country", default="PT", help="Filters data by `country`")
+    parser.add_argument("-country", default=Region.PT, help="Filters data by `country`")
+    parser.add_argument("-format", default="tsv", help="Load file type")
     args = parser.parse_args()
 
-    main(args.country)
+    main(Region(args.country), args.format)
